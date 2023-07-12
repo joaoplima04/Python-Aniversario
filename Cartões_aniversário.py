@@ -1,3 +1,4 @@
+import getpass
 import pandas as pd
 from datetime import datetime
 from mailmerge import MailMerge
@@ -17,8 +18,24 @@ def convert_email(value):
     return value
 
 
+agora = datetime.now()
+hora = agora.hour
+
+if hora < 12:
+    print("Bom dia\n")
+    saudacao = "Bom dia"
+elif hora < 18:
+    print("Boa tarde\n")
+    saudacao = "Boa Tarde"
+else:
+    print("Boa noite\n")
+    saudacao = "Boa noite"
+
+senha = getpass.getpass('Digite sua senha: ')
+
 # Carrega os dados da planilha e converte a coluna "Aniversário" para o tipo datetime
-dados = pd.read_excel('C:\\Users\\João Lucas\\Downloads\\Aniversáriantes Julho3.xlsx', parse_dates=['Aniversãrio'], date_parser=parse_date, converters={'Emails': convert_email})
+dados = pd.read_excel('C:\\Users\\João Lucas\\Downloads\\Aniversáriantes Julho3.xlsx', parse_dates=['Aniversãrio'],
+                      date_parser=parse_date, converters={'Emails': convert_email})
 
 # Filtra os aniversariantes do dia
 hoje = datetime.now().strftime('%d/%m')
@@ -26,17 +43,19 @@ aniversariantes_do_dia = dados[dados['Aniversãrio'].dt.strftime('%d/%m') == hoj
 
 if not aniversariantes_do_dia.empty:
     # Carrega o modelo do documento de cartão de aniversário
-    template = 'C:\\Users\\João Lucas\\Downloads\\Document 6.docx'
+    template = 'C:\\Users\\João Lucas\\Downloads\\Cartão de Aniversário - modelo.docx'
 
     # Gera os cartões de aniversário e envia por e-mail
     for index, row in aniversariantes_do_dia.iterrows():
         documentos = MailMerge(template)
-        nome = row['Nome']
+        name = row['Nome']
         aniversario = row['Aniversãrio']
         email = row['Emails']
         comissão = row['Descrição']
         telefone = row['Telefones']
-        emailss = row['Emailss']
+
+        name = str(name)
+        nome = name.title()
 
         documentos.merge(Nome=nome)  # Substitua NOME pelo nome da variável no modelo do documento
 
@@ -50,10 +69,10 @@ if not aniversariantes_do_dia.empty:
         msg['From'] = 'jaojao04999@outlook.com'
         if pd.isna(email):
             msg['To'] = 'jaojao04999@outlook.com'
-            mensagem = f"Boa tarde!\n\nHoje é aniversário de {nome} da {comissão} do email {email}. Seu telefone é: {telefone} e email: {email}\n\nSegue em anexo o cartão de aniversário.\n\nAtenciosamente,\nSua Equipe"
+            mensagem = f"{saudacao}!\n\nHoje é aniversário de {nome} da {comissão}. Seu telefone é: {telefone} \n\nSegue em anexo o cartão de aniversário.\n\nAtenciosamente,\nSua Equipe"
         else:
             msg['To'] = 'jaojao04999@outlook.com'
-            mensagem = f"Boa tarde {nome}!\n Estou aqui por meio desta mensagem em nome de toda a GAC para te desejar um feliz aniversário!"
+            mensagem = f"{saudacao} {nome}!\n Feliz aniversário!"
 
         msg.attach(MIMEText(mensagem, 'plain'))
 
@@ -64,10 +83,14 @@ if not aniversariantes_do_dia.empty:
 
         server = smtplib.SMTP('smtp.outlook.com', 587)
         server.starttls()
-        server.login("jaojao04999@outlook.com", "sucesso15")  # Insira seu e-mail e senha aqui
+        server.login("jaojao04999@outlook.com", senha)  # Insira seu e-mail e senha aqui
         server.send_message(msg)
         server.quit()
 
+    # Feche o documento modelo
+    documentos.close()
+else:
+    print("Não há aniversariantes hoje.")
     # Feche o documento modelo
     documentos.close()
 else:
