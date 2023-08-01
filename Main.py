@@ -78,7 +78,7 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
             genero = "a"
             abreviacao = "a"
 
-        documentos.merge(Nome=nome, Apelido=genero, CEP=abreviacao)  # Substitua NOME pelo nome da variável no modelo do documento
+        documentos.merge(Nome=nome, Apelido=genero, CEP=abreviacao)  
 
         # Salva cada cartão de aniversário como um documento separado
         documento_salvo = f"{output_dir}/{nome}.docx"
@@ -88,9 +88,7 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
 
         # Converte o documento do Word em PDF
         convert(documento_salvo, documento_pdf)
-        name = str(nome)
-        # Procura os dados de contato e e-mail do aniversariante na segunda planilha (data2)
-
+        
         aniversariantes_notificados.append((email, celular, nome, comissão, cargo, uf, documento_pdf))
 
         # Feche o documento modelo
@@ -99,7 +97,7 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
     return aniversariantes_notificados
 
 
-def notifica_aniversariantes(aniversariantes_notificados, output_dir):
+def notifica_aniversariantes(aniversariantes_notificados):
     if aniversariantes_notificados:
 
         # Adiciona o conteúdo da mensagem
@@ -191,7 +189,7 @@ def main():
     aniversariantes_notificados = gera_cartoes_aniversario(aniversariantes_do_dia, 'C:\\Users\\João Lucas\\Downloads\\Cartão de Aniversário.docx', output_dir)
 
     # Notifica os aniversáriantes do dia
-    notifica_aniversariantes(aniversariantes_notificados, output_dir)
+    notifica_aniversariantes(aniversariantes_notificados)
 
     resposta = input("Deseja enviar o email?(s/n): ")
 
@@ -199,9 +197,8 @@ def main():
         smtp_server = 'smtp.outlook.com'  # Substitua pelo servidor SMTP que você está usando
         smtp_port = 587  # Porta padrão para o servidor SMTP (pode variar de acordo com o provedor de e-mail)
         email_user = 'jaojao04999@outlook.com'  # Seu endereço de e-mail
-        email_password = 'sucesso15'  # Sua senha de e-mail
+        email_password = input("Digite a sua senha: ")  # Sua senha de e-mail
 
-        encoded_pdfs = []  # Lista para armazenar os encoded_pdf de cada aniversariante
         for aniversariante in aniversariantes_notificados:
             email, celular, nome, comissao, cargo, uf, documento_pdf = aniversariante
 
