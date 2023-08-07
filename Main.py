@@ -2,13 +2,12 @@ import pandas as pd
 from datetime import datetime
 from mailmerge import MailMerge
 from docx2pdf import convert
-import subprocess
 import os
-import base64
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 from pdf2image import convert_from_path
 
 
@@ -78,7 +77,7 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
             genero = "a"
             abreviacao = "a"
 
-        documentos.merge(Nome=nome, Apelido=genero, CEP=abreviacao)  
+        documentos.merge(Nome=nome, Apelido=genero, CEP=abreviacao)
 
         # Salva cada cartão de aniversário como um documento separado
         documento_salvo = f"{output_dir}/{nome}.docx"
@@ -88,8 +87,15 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
 
         # Converte o documento do Word em PDF
         convert(documento_salvo, documento_pdf)
-        
-        aniversariantes_notificados.append((email, celular, nome, comissão, cargo, uf, documento_pdf))
+
+        poppler_path = "C:\\Users\\João Lucas\\Downloads\\Release-23.07.0-0\\poppler-23.07.0\\Library\\bin"
+
+        # Salva também o cartão de aniversário como imagem (no formato JPEG)
+        imagem_cartao = f"{output_dir}/{nome}.jpg"
+        images = convert_from_path(documento_pdf, poppler_path=poppler_path)
+        images[0].save(imagem_cartao, 'JPEG')
+
+        aniversariantes_notificados.append((email, celular, nome, comissão, cargo, uf, imagem_cartao, documento_pdf, abreviacao))
 
         # Feche o documento modelo
         documentos.close()
@@ -104,7 +110,7 @@ def notifica_aniversariantes(aniversariantes_notificados):
         mensagem = f"\nHoje é aniversário dos seguintes colaboradores:\n\n"
 
         for i, aniversariante in enumerate(aniversariantes_notificados):
-            email, celular, nome, comissao, cargo, uf, documento_pdf = aniversariante
+            email, celular, nome, comissao, cargo, uf, url_imagem, documento_pdf, abreviacao = aniversariante
 
             mensagem += f"Nome: {nome}\nUF: {uf}\nCargo: {cargo}\nComissão: {comissao}\n"
             mensagem += f"E-mail: {email}\nCelular: {celular}\n\n"
@@ -112,49 +118,11 @@ def notifica_aniversariantes(aniversariantes_notificados):
         print(mensagem)
 
 
-def send_email(email_user, to_address, subject, body, attachment_path, smtp_server, smtp_port, email_password):
-    try:
-            with open(attachment_path, "rb") as attachment:
-                encoded_pdf = base64.b64encode(attachment.read()).decode('utf-8')
-
-            # Crie o objeto de e-mail com cabeçalhos apropriados
-            message = f"""From: {email_user}
-    To: {to_address}
-    Subject: {subject}
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/html
-
-    {body}
-
-    --BOUNDARY
-    Content-Type: application/pdf; name="{os.path.basename(attachment_path)}"
-    Content-Disposition: attachment; filename="{os.path.basename(attachment_path)}"
-    Content-Transfer-Encoding: base64
-
-    {encoded_pdf}
-    --BOUNDARY--
-    """
-
-            # Conecte-se ao servidor SMTP e envie o e-mail
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(email_user, email_password)
-                server.sendmail(email_user, to_address, message)
-
-            print(f"Email enviado para {to_address}")
-
-            return encoded_pdf  # Retorna o valor de encoded_pdf
-    except Exception as e:
-        print(f"Falha ao enviar o email para {to_address}: {e}")
-        return None
-
-
 def main():
 
-    hoje = "05/08"  # Defina manualmente a data de hoje
+    hojee = datetime.now() # Defina manualmente a data de hoje
+    hoje = hojee.strftime("%d/%m")
+    mes_atual = hojee.month
 
     agora = datetime.now()
     hora = agora.hour
@@ -175,7 +143,7 @@ def main():
     # Filtra os aniversariantes do dia
     aniversariantes_do_dia = filtra_aniversariantes(dados, hoje)
 
-    mes = "Agosto"
+    mes = obter_pasta_mes(mes_atual)
     dia = hoje.replace("/", "-")
     output_dir = f'C:\\Users\\João Lucas\\Documents\\Aniversáriantes\\{mes}\\{dia}'
 
@@ -186,62 +154,65 @@ def main():
     cria_diretorio_se_nao_existir(output_dir)
 
     # Gera os cartões de aniversário e armazena os aniversariantes notificados
-    aniversariantes_notificados = gera_cartoes_aniversario(aniversariantes_do_dia, 'C:\\Users\\João Lucas\\Downloads\\Cartão de Aniversário.docx', output_dir)
+    aniversariantes_notificados = gera_cartoes_aniversario(aniversariantes_do_dia,
+                                                           'C:\\Users\\João Lucas\\Downloads\\Cartão de Aniversário.docx',
+                                                           output_dir)
 
-    # Notifica os aniversáriantes do dia
+    # Notifica os aniversariantes do dia
     notifica_aniversariantes(aniversariantes_notificados)
 
-    resposta = input("Deseja enviar o email?(s/n): ")
+    smtp_server = 'smtp.gmail.com'  
+    smtp_port = 587
+    email_user = 'comissoesgaccfoab2023@gmail.com'
+    email_password = 'fsgecxglspcsjhzi'
 
-    if resposta.upper() == "S":
-        smtp_server = 'smtp.outlook.com'  # Substitua pelo servidor SMTP que você está usando
-        smtp_port = 587  # Porta padrão para o servidor SMTP (pode variar de acordo com o provedor de e-mail)
-        email_user = 'jaojao04999@outlook.com'  # Seu endereço de e-mail
-        email_password = input("Digite a sua senha: ")  # Sua senha de e-mail
+    nomes_notificados = {}
 
-        for aniversariante in aniversariantes_notificados:
-            email, celular, nome, comissao, cargo, uf, documento_pdf = aniversariante
+    for aniversariante in aniversariantes_notificados:
+        email, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao = aniversariante
 
-            poppler_path = r'C:\Users\João Lucas\Downloads\Release-23.07.0-0\poppler-23.07.0\Library\bin'
-            images = convert_from_path(documento_pdf, poppler_path=poppler_path)
-            images[0].save('cartao.png', 'PNG')
-
-            # Codifica a imagem em base64
-            with open('cartao.png', 'rb') as image_file:
-                encoded_image = base64.b64encode(image_file.read()).decode('utf-8')  # Convertendo para string
-
+        if nome not in nomes_notificados:
             # Cria o objeto MIMEMultipart para enviar o e-mail
             msg = MIMEMultipart()
             msg['From'] = email_user
-            msg['To'] = str(email)
+            msg['To'] = email
             msg['Subject'] = f"Feliz Aniversário {nome}!"
+            msg['Bcc'] = "daniel.barros@oab.org.br"
 
-            # Incorpora a imagem codificada no corpo do e-mail
-            mail_body = f"""<p>{saudacao} {nome},</p>
+            # Corpo do e-mail em formato HTML com a imagem
+            mail_body = f"""<html>
+            <body>
+            <p>{saudacao} Dr{abreviacao}. {nome},</p>
             <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
-            <p>Aqui está o seu cartão de aniversário:</p>
-            <p><img src="data:image/png;base64,{encoded_image}" alt="Cartão de Aniversário" /></p>
-            <p>Atenciosamente,<br/>GAC Conselho Federal OAB</p>"""
+            <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
+            <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
+            </body>
+            </html>
+            """
 
             part = MIMEText(mail_body, 'html')
             msg.attach(part)
 
-            # Abre o arquivo do cartão PDF e adiciona-o como anexo
+            # Incorpora a imagem codificada no corpo do e-mail
+            with open(imagem_cartao, "rb") as image_file:
+                image = MIMEImage(image_file.read())
+                image.add_header('Content-ID', '<image>')
+                msg.attach(image)
+
+                # Abre o arquivo do cartão PDF e adiciona-o como anexo
             with open(documento_pdf, "rb") as pdf_file:
                 attachment = MIMEApplication(pdf_file.read())
                 attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
                 msg.attach(attachment)
 
-            # Envia o e-mail
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(email_user, email_password)
-            server.sendmail(email_user, email_user, msg.as_string())
-            server.quit()
-    else:
-        print("Email não enviado")
+                # Envia o e-mail
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(email_user, email_password)
+                server.sendmail(email_user, email, msg.as_string())
 
-    input("Pressione Enter para sair...")
+            print(f"Email enviado para {email}")
+            nomes_notificados[nome] = True
 
 
 if __name__ == "__main__":
