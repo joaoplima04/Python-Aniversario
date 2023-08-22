@@ -27,9 +27,18 @@ def carrega_planilha(caminho_planilha):
     return dados
 
 
-def filtra_aniversariantes(data, hoje):
-    # filtra os aniversáriantes do dia
-    aniversariantes_do_dia = data[data['Aniversário'].dt.strftime('%d/%m') == hoje]
+def filtra_aniversariantes(data, hojee):
+    hoje = hojee.strftime('%d/%m')
+
+    # Se o dia for sexta-feira, filtre também os aniversáriantes de sábado e domingo
+    if hojee.weekday() == 4:
+        amanha = hojee + pd.DateOffset(days=1)
+        depois_de_amanha = hojee + pd.DateOffset(days=2)
+        aniversariantes_do_dia = data[data['Aniversário'].dt.strftime('%d/%m').isin(
+            [hoje, amanha.strftime('%d/%m'), depois_de_amanha.strftime('%d/%m')])]
+    else:
+        aniversariantes_do_dia = data[data['Aniversário'].dt.strftime('%d/%m') == hoje]
+
     return aniversariantes_do_dia
 
 
@@ -65,7 +74,7 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
         nome = row['Nomeado']
         cargo = row['Cargo']
         comissão = row['Comissão']
-        email = row['Email']
+        emaill = row['Email']
         celular = row['Contato']
         uf = row['UF']
         sexo = row['Sexo']
@@ -94,6 +103,11 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
         imagem_cartao = f"{output_dir}/{nome}.jpg"
         images = convert_from_path(documento_pdf, poppler_path=poppler_path)
         images[0].save(imagem_cartao, 'JPEG')
+
+        # Transforma o email em uma lista com a função split se na célula estiverem dois ou mais emails
+        email = str(emaill)
+        if ";" in email:
+            email = email.split(";")
 
         aniversariantes_notificados.append((email, celular, nome, comissão, cargo, uf, imagem_cartao, documento_pdf, abreviacao))
 
@@ -141,7 +155,7 @@ def main():
     dados = carrega_planilha('C:\\Users\\João Lucas\\Downloads\\Nova Planilha Aniversariantes.xlsx')
 
     # Filtra os aniversariantes do dia
-    aniversariantes_do_dia = filtra_aniversariantes(dados, hoje)
+    aniversariantes_do_dia = filtra_aniversariantes(dados, hojee)
 
     mes = obter_pasta_mes(mes_atual)
     dia = hoje.replace("/", "-")
@@ -161,7 +175,7 @@ def main():
     # Notifica os aniversariantes do dia
     notifica_aniversariantes(aniversariantes_notificados)
 
-    smtp_server = 'smtp.gmail.com'  
+    smtp_server = 'smtp.gmail.com'
     smtp_port = 587
     email_user = 'comissoesgaccfoab2023@gmail.com'
     email_password = 'fsgecxglspcsjhzi'
@@ -170,49 +184,51 @@ def main():
 
     for aniversariante in aniversariantes_notificados:
         email, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao = aniversariante
-
         if nome not in nomes_notificados:
-            # Cria o objeto MIMEMultipart para enviar o e-mail
-            msg = MIMEMultipart()
-            msg['From'] = email_user
-            msg['To'] = email
-            msg['Subject'] = f"Feliz Aniversário {nome}!"
-            msg['Bcc'] = "daniel.barros@oab.org.br"
+            for email in email:
+                # Cria o objeto MIMEMultipart para enviar o e-mail
+                    msg = MIMEMultipart()
+                    msg['From'] = email_user
+                    msg['To'] = email
+                    msg['Bcc'] = "daniel.barros@oab.org.br"
+                    msg['Subject'] = f"Feliz Aniversário {nome}!"
 
-            # Corpo do e-mail em formato HTML com a imagem
-            mail_body = f"""<html>
-            <body>
-            <p>{saudacao} Dr{abreviacao}. {nome},</p>
-            <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
-            <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
-            <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
-            </body>
-            </html>
-            """
+                    # Corpo do e-mail em formato HTML com a imagem
+                    mail_body = f"""<html>
+                    <body>
+                    <p>{saudacao} Dr{abreviacao}. {nome},</p>
+                    <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
+                    <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
+                    <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
+                    </body>
+                    </html>
+                    """
 
-            part = MIMEText(mail_body, 'html')
-            msg.attach(part)
+                    part = MIMEText(mail_body, 'html')
+                    msg.attach(part)
 
-            # Incorpora a imagem codificada no corpo do e-mail
-            with open(imagem_cartao, "rb") as image_file:
-                image = MIMEImage(image_file.read())
-                image.add_header('Content-ID', '<image>')
-                msg.attach(image)
+                    # Incorpora a imagem codificada no corpo do e-mail
+                    with open(imagem_cartao, "rb") as image_file:
+                        image = MIMEImage(image_file.read())
+                        image.add_header('Content-ID', '<image>')
+                        msg.attach(image)
 
-                # Abre o arquivo do cartão PDF e adiciona-o como anexo
-            with open(documento_pdf, "rb") as pdf_file:
-                attachment = MIMEApplication(pdf_file.read())
-                attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
-                msg.attach(attachment)
+                        # Abre o arquivo do cartão PDF e adiciona-o como anexo
+                    with open(documento_pdf, "rb") as pdf_file:
+                        attachment = MIMEApplication(pdf_file.read())
+                        attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
+                        msg.attach(attachment)
 
-                # Envia o e-mail
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(email_user, email_password)
-                server.sendmail(email_user, email, msg.as_string())
+                        # Envia o e-mail
+                    with smtplib.SMTP(smtp_server, smtp_port) as server:
+                        server.starttls()
+                        server.login(email_user, email_password)
+                        server.sendmail(email_user, email, msg.as_string())
 
-            print(f"Email enviado para {email}")
+            print(f"Email enviado para {nome}")
             nomes_notificados[nome] = True
+        else:
+            print(f"Email já enviado para {nome}")
 
 
 if __name__ == "__main__":
