@@ -104,7 +104,6 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
         images = convert_from_path(documento_pdf, poppler_path=poppler_path)
         images[0].save(imagem_cartao, 'JPEG')
 
-        # Transforma o email em uma lista com a função split se na célula estiverem dois ou mais emails
         email = str(emaill)
         if ";" in email:
             email = email.split(";")
@@ -184,49 +183,49 @@ def main():
 
     for aniversariante in aniversariantes_notificados:
         email, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao = aniversariante
-        if nome not in nomes_notificados:
-            for email in email:
-                # Cria o objeto MIMEMultipart para enviar o e-mail
-                    msg = MIMEMultipart()
-                    msg['From'] = email_user
-                    msg['To'] = email
-                    msg['Bcc'] = "daniel.barros@oab.org.br"
-                    msg['Subject'] = f"Feliz Aniversário {nome}!"
+        if nome not in nomes_notificados and not pd.isnull(email):
 
-                    # Corpo do e-mail em formato HTML com a imagem
-                    mail_body = f"""<html>
-                    <body>
-                    <p>{saudacao} Dr{abreviacao}. {nome},</p>
-                    <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
-                    <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
-                    <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
-                    </body>
-                    </html>
-                    """
+            # Cria o objeto MIMEMultipart para enviar o e-mail
+            msg = MIMEMultipart()
+            msg['From'] = email_user
+            msg['To'] = "joao.lima@oab.org.br"
+            msg['Subject'] = f"Feliz Aniversário {nome}!"
+            msg['Bcc'] = "daniel.barros@oab.org.br"
 
-                    part = MIMEText(mail_body, 'html')
-                    msg.attach(part)
+            # Corpo do e-mail em formato HTML com a imagem
+            mail_body = f"""<html>
+                <body>
+                <p>{saudacao} Dr{abreviacao}. {nome},</p>
+                <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
+                <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
+                <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
+                </body>
+                </html>
+                """
 
-                    # Incorpora a imagem codificada no corpo do e-mail
-                    with open(imagem_cartao, "rb") as image_file:
-                        image = MIMEImage(image_file.read())
-                        image.add_header('Content-ID', '<image>')
-                        msg.attach(image)
+            part = MIMEText(mail_body, 'html')
+            msg.attach(part)
 
-                        # Abre o arquivo do cartão PDF e adiciona-o como anexo
-                    with open(documento_pdf, "rb") as pdf_file:
-                        attachment = MIMEApplication(pdf_file.read())
-                        attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
-                        msg.attach(attachment)
+            # Incorpora a imagem codificada no corpo do e-mail
+            with open(imagem_cartao, "rb") as image_file:
+                image = MIMEImage(image_file.read())
+                image.add_header('Content-ID', '<image>')
+                msg.attach(image)
 
-                        # Envia o e-mail
-                    with smtplib.SMTP(smtp_server, smtp_port) as server:
-                        server.starttls()
-                        server.login(email_user, email_password)
-                        server.sendmail(email_user, email, msg.as_string())
+                # Abre o arquivo do cartão PDF e adiciona-o como anexo
+            with open(documento_pdf, "rb") as pdf_file:
+                attachment = MIMEApplication(pdf_file.read())
+                attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
+                msg.attach(attachment)
 
-            print(f"Email enviado para {nome}")
-            nomes_notificados[nome] = True
+            # Envia o e-mail
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(email_user, email_password)
+                server.sendmail(email_user, "joao.lima@oab.org.br", msg.as_string())
+
+                print(f"Email enviado para {nome}")
+                nomes_notificados[nome] = True
         else:
             print(f"Email já enviado para {nome}")
 
