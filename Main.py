@@ -15,15 +15,11 @@ def parse_date(date_str):
     return pd.to_datetime(date_str, format='%d/%m', errors='coerce')
 
 
-def convert_email(value):
-    if isinstance(value, str):
-        return value.strip()
-    return value
-
-
 def carrega_planilha(caminho_planilha):
-    # Carrega os dados da planilha e converte a coluna "Aniversário" para o tipo datetime
     dados = pd.read_excel(caminho_planilha, parse_dates=['Aniversário'], date_parser=parse_date)
+    # Trata todos os emails como listas
+    dados['Email'] = dados['Email'].apply(lambda x: x.split(";") if isinstance(x, str) else x)
+    dados['Email'] = dados['Email'].apply(lambda x: [email.strip() for email in x] if isinstance(x, list) else x)
     return dados
 
 
@@ -66,15 +62,14 @@ def cria_diretorio_se_nao_existir(diretorio):
 
 
 def gera_cartoes_aniversario(data, template_path, output_dir):
-    aniversariantes_notificados = []  # Lista para armazenar os aniversariantes notificados
+    aniversariantes_notificados = []
 
-    # Gera os cartões de aniversário e armazena os aniversariantes notificados
     for index, row in data.iterrows():
         documentos = MailMerge(template_path)
         nome = row['Nomeado']
         cargo = row['Cargo']
-        comissão = row['Comissão']
-        emaill = row['Email']
+        comissao = row['Comissão']
+        emails = row['Email']
         celular = row['Contato']
         uf = row['UF']
         sexo = row['Sexo']
@@ -87,30 +82,18 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
             abreviacao = "a"
 
         documentos.merge(Nome=nome, Apelido=genero, CEP=abreviacao)
-
-        # Salva cada cartão de aniversário como um documento separado
         documento_salvo = f"{output_dir}/{nome}.docx"
         documento_pdf = f"{output_dir}/{nome}.pdf"
-
         documentos.write(documento_salvo)
-
-        # Converte o documento do Word em PDF
         convert(documento_salvo, documento_pdf)
-
         poppler_path = "C:\\Users\\João Lucas\\Downloads\\Release-23.07.0-0\\poppler-23.07.0\\Library\\bin"
-
-        # Salva também o cartão de aniversário como imagem (no formato JPEG)
         imagem_cartao = f"{output_dir}/{nome}.jpg"
         images = convert_from_path(documento_pdf, poppler_path=poppler_path)
         images[0].save(imagem_cartao, 'JPEG')
 
-        email = str(emaill)
-        if ";" in email:
-            email = email.split(";")
+        aniversariantes_notificados.append(
+            (emails, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao))
 
-        aniversariantes_notificados.append((email, celular, nome, comissão, cargo, uf, imagem_cartao, documento_pdf, abreviacao))
-
-        # Feche o documento modelo
         documentos.close()
 
     return aniversariantes_notificados
@@ -118,25 +101,18 @@ def gera_cartoes_aniversario(data, template_path, output_dir):
 
 def notifica_aniversariantes(aniversariantes_notificados):
     if aniversariantes_notificados:
-
-        # Adiciona o conteúdo da mensagem
         mensagem = f"\nHoje é aniversário dos seguintes colaboradores:\n\n"
-
         for i, aniversariante in enumerate(aniversariantes_notificados):
             email, celular, nome, comissao, cargo, uf, url_imagem, documento_pdf, abreviacao = aniversariante
-
             mensagem += f"Nome: {nome}\nUF: {uf}\nCargo: {cargo}\nComissão: {comissao}\n"
             mensagem += f"E-mail: {email}\nCelular: {celular}\n\n"
-
         print(mensagem)
 
 
 def main():
-
-    hojee = datetime.now() # Defina manualmente a data de hoje
+    hojee = datetime.now()
     hoje = hojee.strftime("%d/%m")
     mes_atual = hojee.month
-
     agora = datetime.now()
     hora = agora.hour
 
@@ -150,84 +126,77 @@ def main():
         print("Boa noite!\n")
         saudacao = "Boa noite"
 
-    # Carrega os dados da planilha
     dados = carrega_planilha('C:\\Users\\João Lucas\\Downloads\\Nova Planilha Aniversariantes.xlsx')
-
-    # Filtra os aniversariantes do dia
     aniversariantes_do_dia = filtra_aniversariantes(dados, hojee)
-
     mes = obter_pasta_mes(mes_atual)
     dia = hoje.replace("/", "-")
     output_dir = f'C:\\Users\\João Lucas\\Documents\\Aniversáriantes\\{mes}\\{dia}'
-
-    # Cria o diretório do mês se ele não existir
     cria_diretorio_se_nao_existir(f'C:\\Users\\João Lucas\\Documents\\Aniversáriantes\\{mes}')
-
-    # Cria o diretório do dia dentro do diretório do mês
     cria_diretorio_se_nao_existir(output_dir)
-
-    # Gera os cartões de aniversário e armazena os aniversariantes notificados
     aniversariantes_notificados = gera_cartoes_aniversario(aniversariantes_do_dia,
                                                            'C:\\Users\\João Lucas\\Downloads\\Cartão de Aniversário.docx',
                                                            output_dir)
-
-    # Notifica os aniversariantes do dia
     notifica_aniversariantes(aniversariantes_notificados)
-
     smtp_server = 'smtp.gmail.com'
     smtp_port = 587
     email_user = 'comissoesgaccfoab2023@gmail.com'
     email_password = 'fsgecxglspcsjhzi'
 
-    nomes_notificados = {}
+    nomes_notificados = set()
+    nomes_notificados_emails = {}
 
     for aniversariante in aniversariantes_notificados:
-        email, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao = aniversariante
-        if nome not in nomes_notificados and not pd.isnull(email):
+        emails, celular, nome, comissao, cargo, uf, imagem_cartao, documento_pdf, abreviacao = aniversariante
+        try:
+            if nome not in nomes_notificados:
+                for email in emails:
+                    email = email.strip()
+                    msg = MIMEMultipart()
+                    msg['From'] = email_user
+                    msg['To'] = email
+                    msg['Subject'] = f"Feliz Aniversário {nome}!"
+                    msg['Bcc'] = "daniel.barros@oab.org.br"
 
-            # Cria o objeto MIMEMultipart para enviar o e-mail
-            msg = MIMEMultipart()
-            msg['From'] = email_user
-            msg['To'] = "joao.lima@oab.org.br"
-            msg['Subject'] = f"Feliz Aniversário {nome}!"
-            msg['Bcc'] = "daniel.barros@oab.org.br"
+                    mail_body = f"""<html>
+                        <body>
+                        <p>{saudacao} Dr{abreviacao}. {nome},</p>
+                        <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
+                        <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
+                        <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
+                        </body>
+                        </html>
+                        """
 
-            # Corpo do e-mail em formato HTML com a imagem
-            mail_body = f"""<html>
-                <body>
-                <p>{saudacao} Dr{abreviacao}. {nome},</p>
-                <p>Desejamos a você um Feliz Aniversário! Que este seja um dia especial e repleto de alegria.</p>
-                <p>Segue abaixo e em anexo o respectivo cartão de aniversário:</p>
-                <img src="cid:image" alt="Cartão de Aniversário" width="700"/>
-                </body>
-                </html>
-                """
+                    part = MIMEText(mail_body, 'html')
+                    msg.attach(part)
 
-            part = MIMEText(mail_body, 'html')
-            msg.attach(part)
+                    with open(imagem_cartao, "rb") as image_file:
+                        image = MIMEImage(image_file.read())
+                        image.add_header('Content-ID', '<image>')
+                        msg.attach(image)
 
-            # Incorpora a imagem codificada no corpo do e-mail
-            with open(imagem_cartao, "rb") as image_file:
-                image = MIMEImage(image_file.read())
-                image.add_header('Content-ID', '<image>')
-                msg.attach(image)
+                    with open(documento_pdf, "rb") as pdf_file:
+                        attachment = MIMEApplication(pdf_file.read())
+                        attachment.add_header('Content-Disposition', f'attachment',
+                                              filename=os.path.basename(documento_pdf))
+                        msg.attach(attachment)
 
-                # Abre o arquivo do cartão PDF e adiciona-o como anexo
-            with open(documento_pdf, "rb") as pdf_file:
-                attachment = MIMEApplication(pdf_file.read())
-                attachment.add_header('Content-Disposition', f'attachment', filename=os.path.basename(documento_pdf))
-                msg.attach(attachment)
-
-            # Envia o e-mail
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(email_user, email_password)
-                server.sendmail(email_user, "joao.lima@oab.org.br", msg.as_string())
-
-                print(f"Email enviado para {nome}")
-                nomes_notificados[nome] = True
-        else:
-            print(f"Email já enviado para {nome}")
+                    with smtplib.SMTP(smtp_server, smtp_port) as server:
+                        server.starttls()
+                        server.login(email_user, email_password)
+                        try:
+                            server.sendmail(email_user, email, msg.as_string())
+                        except Exception as e:
+                            print(f"Email não enviado devido ao erro: {e}")
+                        print(f"Email enviado para {nome} - {email}")
+                        nomes_notificados.add(nome)
+                        if nome not in nomes_notificados_emails:
+                            nomes_notificados_emails[nome] = []
+                        nomes_notificados_emails[nome].append(email)
+            else:
+                print(f"Email já enviado para {nome}")
+        except Exception as e:
+            print(f"O email não foi enviado pelo erro: {e}")
 
 
 if __name__ == "__main__":
