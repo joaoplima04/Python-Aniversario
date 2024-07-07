@@ -25,11 +25,12 @@ Este script Python automatiza o envio de cartões de aniversário para colaborad
   ```bash
   pip install pandas mailmerge docx2pdf pdf2image
 
-# Dependências Adicionais
+## Dependências Adicionais
 
-Para converter PDFs em imagens, o script usa o poppler-utils. Instale-o com o seguinte comando:
+Para converter PDFs em imagens, o script usa o `poppler-utils`. Instale-o com o seguinte comando:
+
 ```bash
-
+sudo apt-get install poppler-utils
 ## Uso
 
 1. Prepare a Planilha: A planilha deve estar no formato Excel (.xlsx) e deve conter as seguintes colunas: Nomeado, Cargo, Comissão, Email, Contato, UF, Sexo, e Aniversário.
