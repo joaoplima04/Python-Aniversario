@@ -22,15 +22,17 @@ Este script Python automatiza o envio de cartões de aniversário para colaborad
   - `os` (parte da biblioteca padrão do Python)
 
 1. Você pode instalar as bibliotecas necessárias usando `pip`:
-  ```bash
-  pip install pandas mailmerge docx2pdf pdf2image
+```
+pip install pandas mailmerge docx2pdf pdf2image
+```
 
 ## Dependências Adicionais
 
 Para converter PDFs em imagens, o script usa o `poppler-utils`. Instale-o com o seguinte comando:
 
-```bash
+```
 sudo apt-get install poppler-utils
+```
 ## Uso
 
 1. Prepare a Planilha: A planilha deve estar no formato Excel (.xlsx) e deve conter as seguintes colunas: Nomeado, Cargo, Comissão, Email, Contato, UF, Sexo, e Aniversário.
@@ -39,8 +41,33 @@ sudo apt-get install poppler-utils
 
 3. Configuração do Script:
 
-Atualize o caminho para a planilha de entrada na função carrega_planilha.
-Atualize o caminho para o modelo de cartão de aniversário na função gera_cartoes_aniversario.
-Ajuste o caminho para onde os arquivos de saída serão salvos.
-Configure as informações do servidor SMTP (endereço do servidor e credenciais de e-mail).
-Execute o Script: Execute o script Python no seu ambiente local.
+* Atualize o caminho para a planilha de entrada na função carrega_planilha.
+* Atualize o caminho para o modelo de cartão de aniversário na função gera_cartoes_aniversario.
+* Ajuste o caminho para onde os arquivos de saída serão salvos.
+* Configure as informações do servidor SMTP (endereço do servidor e credenciais de e-mail).
+
+4. Execute o Script: Execute o script Python no seu ambiente local.
+  ```
+  python Main.py
+  ```
+
+## Considerações
+
+* Segurança: Não compartilhe suas credenciais de e-mail. Use variáveis de ambiente ou arquivos de configuração para armazenar informações sensíveis.
+
+* Testes: Antes de usar em produção, teste o script com um conjunto de dados menor para garantir que tudo funcione conforme o esperado.
+
+## Contribuições
+
+Se você tiver sugestões ou melhorias para o script, sinta-se à vontade para contribuir. Envie uma solicitação de pull ou abra uma issue para discutir melhorias.
+
+## Licença
+Este projeto está licenciado sob a Licença MIT.
+
+## Contribuições
+Se você tiver sugestões ou melhorias para o script, sinta-se à vontade para contribuir. Envie uma solicitação de pull ou abra uma issue para discutir melhorias.
+
+## Contato
+* Nome: João Lucas Pereira Lima
+* Email: jaolucasssp@gmail.com
+* linkedin: https://www.linkedin.com/in/joao-lucas-90219a273/
