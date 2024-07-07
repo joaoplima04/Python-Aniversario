@@ -21,10 +21,9 @@ Este script Python automatiza o envio de cartões de aniversário para colaborad
   - `email.mime` (parte da biblioteca padrão do Python)
   - `os` (parte da biblioteca padrão do Python)
 
-Você pode instalar as bibliotecas necessárias usando `pip`:
-
-```bash
-pip install pandas mailmerge docx2pdf pdf2image
+1. Você pode instalar as bibliotecas necessárias usando `pip`:
+  ```bash
+  pip install pandas mailmerge docx2pdf pdf2image
 
 # Dependências Adicionais
 
