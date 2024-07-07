@@ -140,7 +140,7 @@ def main():
     smtp_server = 'smtp.gmail.com'
     smtp_port = 587
     email_user = 'comissoesgaccfoab2023@gmail.com'
-    email_password = 'fsgecxglspcsjhzi'
+    email_password = ''
 
     nomes_notificados = set()
     nomes_notificados_emails = {}
